@@ -578,6 +578,10 @@ unlock_encrypted_partition() {
 	done
 
 	halium_hook teardown_touchscreen
+
+	[ ! -d "/run/plymouth" ] && mkdir -m 0755 /run/plymouth
+	[ -e "/usr/sbin/plymouthd" ] && PLYMOUTH_FORCE_SCALE="1" /usr/sbin/plymouthd --mode=boot --attach-to-session --pid-file=/run/plymouth/pid --ignore-serial-consoles --kernel-command-line "splash plymouth.ignore-udev" || true
+	[ -e "/usr/bin/plymouth" ] && PLYMOUTH_FORCE_SCALE="1" /usr/bin/plymouth --show-splash || true
 }
 
 signal_root_move_done() {
