@@ -67,7 +67,7 @@ cp -av scripts/* ${tmpdir}/etc/initramfs-tools/scripts
 cp -av hooks/* ${tmpdir}/etc/initramfs-tools/hooks
 
 # Set plymouth default theme
-plymouth-set-default-theme -R droidian
+plymouth-set-default-theme -R furios
 
 # Finally build
 mkdir -p ${OUT}
