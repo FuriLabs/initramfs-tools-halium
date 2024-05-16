@@ -540,10 +540,9 @@ unlock_encrypted_partition() {
 	part="${1}"
 	header="${2}"
 	name="${3}"
-	is_recovery="${4}"
 
 	# FIXME: quit plymouth, it would be better to hide/reshow but we
-	# can't when using the drm backend
+	# can't when using the minui backend
 	[ -e "/usr/bin/plymouth" ] && plymouth quit || true
 
 	halium_hook setup_touchscreen
@@ -556,11 +555,6 @@ unlock_encrypted_partition() {
 			2)
 				# Wrong passphrase
 				let tries=tries+1
-
-				if [ "${is_recovery}" == "yes" ] && [ "${tries}" > 5 ]; then
-					# Recovery requested, trigger panic after 5 failures
-					halium_panic "Unable to unlock root partition"
-				fi
 				;;
 			0)
 				if [ ! -e /dev/mapper/${name} ]; then
@@ -576,6 +570,22 @@ unlock_encrypted_partition() {
 				;;
 		esac
 	done
+
+	halium_hook teardown_touchscreen
+
+	[ ! -d "/run/plymouth" ] && mkdir -m 0755 /run/plymouth
+	[ -e "/usr/sbin/plymouthd" ] && PLYMOUTH_FORCE_SCALE="1" /usr/sbin/plymouthd --mode=boot --attach-to-session --pid-file=/run/plymouth/pid --ignore-serial-consoles --kernel-command-line "splash plymouth.ignore-udev" || true
+	[ -e "/usr/bin/plymouth" ] && PLYMOUTH_FORCE_SCALE="1" /usr/bin/plymouth --show-splash || true
+}
+
+run_furios_recovery() {
+	# FIXME: quit plymouth, it would be better to hide/reshow but we
+	# can't when using the minui backend
+	[ -e "/usr/bin/plymouth" ] && plymouth quit || true
+
+	halium_hook setup_touchscreen
+
+	furios-recovery
 
 	halium_hook teardown_touchscreen
 
@@ -664,21 +674,26 @@ mountroot() {
 		halium_panic "Couldn't find data partition."
 	fi
 
-	# Check if this is a recovery image. If so, check the cmdline for
-	# hints on the current requested mode - we support booting the system
-	# even on recovery images
-	if grep -q halium.recovery /proc/cmdline; then
-		HALIUM_RECOVERY="yes"
-		for x in $(cat /proc/cmdline); do
-			case ${x} in
-			skip_initramfs|androidboot.force_normal_boot=1)
-				HALIUM_RECOVERY="no"
-				;;
-			esac
-		done
-	else
-		HALIUM_RECOVERY="no"
-	fi
+	# Check the cmdline for hints on the current requested mode
+	BOOT_TO_RECOVERY="yes"
+	for x in $(cat /proc/cmdline); do
+		case ${x} in
+		# Android 9 system-as-root
+		skip_initramfs)
+			BOOT_TO_RECOVERY="no"
+			;;
+		# Android 10+ recovery-as-boot
+		androidboot.force_normal_boot=1)
+			BOOT_TO_RECOVERY="no"
+			;;
+		# Android 12+ (GKI 2.0+) recovery-as-boot
+		bootconfig)
+			if grep -q 'androidboot.force_normal_boot = "1"' /proc/bootconfig; then
+				BOOT_TO_RECOVERY="no"
+			fi
+		;;
+		esac
+	done
 
 	# Check if we should prefer LVM mounts. If that's the case, try
 	# mounting the droidian-rootfs LV first, then fallback to the standard
@@ -734,7 +749,7 @@ mountroot() {
 			# LUKS header, we should unlock
 			unlocked_syspart_name="droidian_encrypted"
 			use_luks="yes"
-			unlock_encrypted_partition /dev/${vg}/${root_lv} /dev/${vg}/${reserved_lv} ${unlocked_syspart_name} ${HALIUM_RECOVERY}
+			unlock_encrypted_partition /dev/${vg}/${root_lv} /dev/${vg}/${reserved_lv} ${unlocked_syspart_name}
 			_syspart="/dev/mapper/${unlocked_syspart_name}"
 		fi
 	fi
@@ -837,10 +852,10 @@ mountroot() {
 
 	identify_boot_mode
 
-	# Determine whether we should boot to rootfs or Android
-	if [ "${HALIUM_RECOVERY}" == "yes" ]; then
-		halium_panic "Recovery mode ready"
-        fi
+	# Determine whether we should boot to recovery
+	if [ "${BOOT_TO_RECOVERY}" == "yes" ]; then
+		run_furios_recovery
+	fi
 
 	if [ "$BOOT_MODE" = "recovery" ]; then
 		tell_kmsg "Recovery boot mode for system-as-root devices"
