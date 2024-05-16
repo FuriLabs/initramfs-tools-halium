@@ -16,7 +16,7 @@ Build-Depends: debhelper (>= 13),
                dropbear,
                cryptsetup-initramfs,
                plymouth,
-               plymouth-theme-droidian,
+               plymouth-theme-furios,
                unl0kr,
                droidian-encryption-service,
                pigz,
@@ -34,8 +34,8 @@ Depends: initramfs-tools,
          busybox-static,
          e2fsprogs,
          ${misc:Depends}
-Description: tools for mounting a Droidian rootfs
- This package contains the scripts to boot a Droidian device.
+Description: tools for mounting a FuriOS rootfs
+ This package contains the scripts to boot a FuriOS device.
  It also ships a default fstab that uses the android device paths based
  on partition label
 
