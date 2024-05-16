@@ -1,7 +1,7 @@
 Source: initramfs-tools-halium
 Section: utils
 Priority: optional
-Maintainer: Eugenio Paolantonio (g7) <me@medesimo.eu>
+Maintainer: Bardia Moshiri <fakeshell@bardia.tech>
 XSBC-Original-Maintainer: Halium developers <admin@halium.org>
 Build-Depends: debhelper (>= 13),
                lsb-release,
