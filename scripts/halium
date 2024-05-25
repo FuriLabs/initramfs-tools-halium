@@ -521,6 +521,11 @@ mountroot() {
 		esac
 	done
 
+	# Determine whether we should boot to recovery
+	if [ "${BOOT_TO_RECOVERY}" == "yes" ]; then
+		run_furios_recovery
+	fi
+
 	# Check if we should prefer LVM mounts. If that's the case, try
 	# mounting the droidian-rootfs LV first, then fallback to the standard
 	# halium way (where we assume that userdata is a mountable partition)
@@ -666,11 +671,6 @@ mountroot() {
 	[ $ANDROID_IMAGE_MODE = "rootfs" ] && mount -o bind $MOUNT_LOCATION/system /android-system
 
 	identify_boot_mode
-
-	# Determine whether we should boot to recovery
-	if [ "${BOOT_TO_RECOVERY}" == "yes" ]; then
-		run_furios_recovery
-	fi
 
 	if [ "$BOOT_MODE" = "recovery" ]; then
 		tell_kmsg "Recovery boot mode for system-as-root devices"
