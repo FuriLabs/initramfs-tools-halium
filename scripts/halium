@@ -464,6 +464,21 @@ mountroot() {
 	# Make sure the device has been created by udev before we try to mount
 	udevadm settle
 
+	if [ -f "/usr/bin/lvglcharger" ]; then
+		if grep -q "androidboot.bootreason=usb" /proc/cmdline; then
+			if [ -d "/sys/class/power_supply/charger" ]; then
+				while [ ! -e "/sys/class/power_supply/charger/online" ]; do
+					sleep 1
+				done
+				while [ "$(cat /sys/class/power_supply/charger/online)" -eq 0 ]; do
+					sleep 1
+				done
+			fi
+
+			lvglcharger
+		fi
+	fi
+
 	# find the right partition
 	for partname in $partlist; do
 		part=$(find /dev -name $partname | tail -1)
