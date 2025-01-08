@@ -436,6 +436,57 @@ signal_root_move_done() {
 	done
 }
 
+manage_bootman_partition() {
+	if command -v plymouth >/dev/null && plymouth --ping; then
+		plymouth display-message --text="Configuring requested partition from bootman"
+	fi
+
+	commands_file="/furios-persist/bootman/commands"
+	while IFS= read -r cmd; do
+		# Skip empty lines
+		[ -z "$cmd" ] && continue
+
+		tell_kmsg "Executing: $cmd from bootman installation commands"
+		eval "$cmd"
+
+		if [ $? -ne 0 ]; then
+			tell_kmsg "Failed to execute: $cmd from bootman installation commands"
+		fi
+	done < "$commands_file"
+
+	# commands operation can be for adding or removing new partitions
+	# don't touch partitions file if manage_bootman_partition is running to remove an installation
+	if [ -f "/furios-persist/bootman/wip-partitions" ]; then
+		echo $(cat /furios-persist/bootman/wip-partitions) >> /furios-persist/bootman/partitions
+	fi
+
+	rm -f /furios-persist/bootman/wip-partitions /furios-persist/bootman/commands
+
+	# maybe not 100% neccesary but better safe than sorry
+	lvm vgscan
+
+	if command -v plymouth >/dev/null && plymouth --ping; then
+		plymouth display-message --text=" "
+	fi
+}
+
+run_bootman() {
+	# FIXME: quit plymouth, it would be better to hide/reshow but we
+	# can't when using the minui backend
+	[ -e "/usr/bin/plymouth" ] && plymouth quit || true
+
+	halium_hook setup_touchscreen
+
+	# usually after selecting something bootman should reboot
+	# if it doesn't then just try booting from the already selected syspart in mountroot
+	bootman &> /dev/null
+	if [ $? -ne 0 ]; then
+		tell_kmsg "Bootman failed with exit status $?"
+	fi
+
+	halium_hook teardown_touchscreen
+}
+
 mountroot() {
 	# list of possible userdata partition names
 	partlist="userdata UDA DATAFS USERDATA"
@@ -566,7 +617,7 @@ mountroot() {
 		done
 
 		# Set default search vgs and root_lv
-		[ -z "${search_vg}" ] && search_vg="droidian sailfish"
+		[ -z "${search_vg}" ] && search_vg="droidian"
 		[ -z "${root_lv}" ] && root_lv="droidian-rootfs"
 		[ -z "${reserved_lv}" ] && reserved_lv="droidian-reserved"
 		[ -z "${persistent_lv}" ] && persistent_lv="droidian-persistent"
@@ -634,6 +685,51 @@ mountroot() {
 		fi
 
 		identify_file_layout
+	fi
+
+	# in the future this should be read from main lv instead of hardcoded to vendor_boot_a
+	FURIOS_PERSIST="/dev/disk/by-partlabel/vendor_boot_a"
+
+	# bootman does not work with encrypted systems
+	if [ "${use_lvm}" == "yes" ] && [ -z "${unlocked_syspart_name}" ] && [ -e "${FURIOS_PERSIST}" ] && [ -n "${search_vg}" ]; then
+		mkdir -p /furios-persist
+
+		# if this doesn't mount we will catch it in the next branch so not the cleanest, but gets the job done
+		filesystem=$(blkid -o value -s TYPE "${FURIOS_PERSIST}")
+		if [ "${filesystem}" == "ext4" ]; then
+			mount "${FURIOS_PERSIST}" /furios-persist
+		fi
+
+		if grep -q "/furios-persist" /proc/mounts; then
+			if [ -f "/furios-persist/bootman/commands" ]; then
+				manage_bootman_partition
+			fi
+
+			# if there is only one partition there is no point in boot manager starting up
+			# there are 2x32mb partitions, these are persist and reserved. ignore these when we are getting a count
+			partition_count=$(lvm lvs --noheadings --options lv_size | grep -v "32.00m" | wc -l)
+			if [ ${partition_count} -gt 1 ]; then
+				if [ ! -f "/furios-persist/bootman/next-boot" ]; then
+					run_bootman "${search_vg}"
+				else
+					chosen_part=$(cat /furios-persist/bootman/next-boot)
+					if [ -n "${chosen_part}" ]; then
+						_syspart="/dev/${search_vg}/${chosen_part}"
+						tell_kmsg "Boot manager selected to boot the partition ${chosen_part}"
+					else
+						tell_kmsg "Failed to get boot manager next boot, file is empty"
+					fi
+				fi
+			fi
+
+			# after reading the current boot selection remove the indicator to make bootman ask again on the next boot
+			# TODO: sometimes next-boot is not removed and I am unsure why
+			# currently krypton-furiospersist takes care of removing it if it has not been removed already
+			rm -f /furios-persist/bootman/next-boot
+			umount /furios-persist
+		else
+			tell_kmsg "Failed to mount furios-persist"
+		fi
 	fi
 
 	# If both $imagefile and $_syspart are set, something is wrong. The strange
