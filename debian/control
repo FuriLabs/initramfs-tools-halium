@@ -3,6 +3,7 @@ Section: utils
 Priority: optional
 Maintainer: Bardia Moshiri <fakeshell@bardia.tech>
 XSBC-Original-Maintainer: Halium developers <admin@halium.org>
+XS-FuriOS-Extra-Repos: deb http://furilabs-bootman.repo.furios.io/trixie-initial/ trixie main
 Build-Depends: debhelper (>= 13),
                lsb-release,
                fakeroot,
@@ -27,6 +28,7 @@ Build-Depends: debhelper (>= 13),
                furios-recovery,
                lvglcharger,
                furios-terminal,
+               bootman,
 Standards-Version: 4.1.3
 
 Package: initramfs-tools-halium
