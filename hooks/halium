@@ -28,6 +28,7 @@ copy_exec /lib/$DEB_HOST_MULTIARCH/libz.so.1
 copy_exec /usr/lib/$DEB_HOST_MULTIARCH/libcrypto.so
 copy_exec /usr/lib/$DEB_HOST_MULTIARCH/libdl.so.2
 copy_exec /usr/sbin/dropbear /sbin
+copy_exec /usr/sbin/mke2fs /sbin
 
 # Droidian: copy touchscreen rules
 mkdir -p "${DESTDIR}/etc/udev/rules.d"
