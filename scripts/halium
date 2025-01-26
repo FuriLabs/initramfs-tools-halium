@@ -675,11 +675,18 @@ mountroot() {
 			partition_count=$(lvm lvs --noheadings --options lv_size | grep -v "32.00m" | wc -l)
 			if [ ${partition_count} -gt 1 ]; then
 				if [ ! -f "/furios-persist/bootman/next-boot" ]; then
-					run_bootman "${search_vg}"
+					run_bootman
 				else
 					chosen_part=$(cat /furios-persist/bootman/next-boot)
 					if [ -n "${chosen_part}" ]; then
-						_syspart="/dev/${search_vg}/${chosen_part}"
+						case "${chosen_part}" in
+						/*)
+							_syspart="${chosen_part}"
+							;;
+						*)
+							_syspart="/dev/${search_vg}/${chosen_part}"
+							;;
+						esac
 						tell_kmsg "Boot manager selected to boot the partition ${chosen_part}"
 					else
 						tell_kmsg "Failed to get boot manager next boot, file is empty"
