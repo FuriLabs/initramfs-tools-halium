@@ -81,20 +81,6 @@ identify_boot_mode() {
 		BOOT_MODE="android"
 	fi
 
-	## Some devices may be using 'bootreason', others 'boot_reason'
-	## XXX: Find a better way to handle device specifics here
-
-	# Krillin
-	if [ -f /sys/class/BOOT/BOOT/boot/boot_mode ]; then
-		boot_reason=$(cat /sys/class/BOOT/BOOT/boot/boot_mode)
-		case "${boot_reason}" in
-		1) BOOT_MODE="android" ;; # Meta
-		4) BOOT_MODE="android" ;; # Factory
-		8) BOOT_MODE="android" ;; # Power off charging
-		9) BOOT_MODE="android" ;; # Low power charging
-		esac
-	fi
-
 	# System-as-root or a device without dedicated recovery partition
 	if [ -f /ramdisk-recovery.img ] && [ -z "$normal_boot" ]; then
 		BOOT_MODE="recovery"
@@ -214,22 +200,6 @@ mount_android_partitions() {
 	fi
 }
 
-mount_halium_overlay() {
-	source=$1
-	target=$2
-
-	if [ -d ${source} ]; then
-		OLD_PWD=$PWD
-		cd ${source}
-
-		for overlay in $(find . -type f); do
-			[ -f ${target}/${overlay} ] && mount --bind ${source}/${overlay} ${target}/${overlay}
-		done
-
-		cd $OLD_PWD
-	fi
-}
-
 resize_userdata_if_needed() {
 
 	# See if the filesystem on the userdata partition needs resizing (usually on first boot).
@@ -326,11 +296,6 @@ identify_file_layout() {
 		file_layout="partition"
 	fi
 
-}
-
-mount_kernel_modules() {
-	# Bind-mount /lib/modules from Android
-	[ -e ${rootmnt}/android/system/lib/modules ] && mount --bind ${rootmnt}/android/system/lib/modules ${rootmnt}/lib/modules
 }
 
 load_kernel_modules() {
@@ -734,7 +699,7 @@ mountroot() {
 
 	# If both $imagefile and $_syspart are set, something is wrong. The strange
 	# output from this could be a clue in that situation.
-	tell_kmsg "Halium rootfs is $imagefile $_syspart"
+	tell_kmsg "rootfs is $imagefile $_syspart"
 
 	# Prepare the root filesystem
 	# NOTE: We mount it read-write in all cases, then remount read-only.
@@ -848,25 +813,12 @@ mountroot() {
 		mount -o bind ${rootmnt}/userdata/android-data ${rootmnt}/android/data
 		[ ! -h ${rootmnt}/data ] && ln -sf /android/data ${rootmnt}/data
 
-		# Get device information
-		device=$(grep ^ro.product.device= /android-system/build.prop | sed -e 's/.*=//')
-		[ -z "$device" ] && device="unknown" && tell_kmsg "WARNING: Didn't find a device name. Is the Android system image mounted correctly?"
-		tell_kmsg "device is $device"
-
 		# Mount all the Android partitions
 		mount_android_partitions "${rootmnt}/var/lib/lxc/android/rootfs/fstab*" ${rootmnt}/android ${rootmnt}/userdata
 
 		# system is a special case
 		tell_kmsg "moving Android system to /android/system"
 		mount --move /android-system ${rootmnt}/android/system
-
-		# halium overlay available in the Android system image (hardware specific configs)
-		if [ -e ${rootmnt}/android/system/halium ]; then
-			mount_halium_overlay ${rootmnt}/android/system/halium ${rootmnt}
-		fi
-
-		# Bind-mount /lib/modules from Android
-		mount_kernel_modules
 
 		# Bind-mount /var/lib/ureadahead if available on persistent storage
 		# this is required because ureadahead runs before mountall
