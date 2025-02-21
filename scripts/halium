@@ -672,7 +672,9 @@ mountroot() {
 
 			# if there is only one partition there is no point in boot manager starting up
 			# there are 2x32mb partitions, these are persist and reserved. ignore these when we are getting a count
-			partition_count=$(lvm lvs --noheadings --options lv_size | grep -v "32.00m" | wc -l)
+			lvm_partition_count=$(lvm lvs --noheadings --options lv_size | grep -v "32.00m" | wc -l)
+			dev_partition_count=$(cat /furios-persist/bootman/partitions | grep "/dev" | wc -l)
+			partition_count=$((lvm_partition_count + dev_partition_count))
 			if [ ${partition_count} -gt 1 ]; then
 				if [ ! -f "/furios-persist/bootman/next-boot" ]; then
 					run_bootman
