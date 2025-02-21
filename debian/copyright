@@ -1,13 +1,25 @@
-This package was debianized by Oliver Grawert <ogra@ubuntu.com> on
-Fri, 17 Jan 2013 13:03:52 -0200.
+Format: https://github.com/FakeShell/initramfs-tools-halium.git
+Upstream-Name: initramfs-tools-halium
+Source: https://github.com/FakeShell/initramfs-tools-halium.git
 
-Authors: Oliver Grawert	<ogra@ubuntu.com>
+# Feel free to add your names here
+Files: *
+Copyright: 2025 Bardia Moshiri <fakeshell@bardia.tech>
+License: GPL-3.0-or-later
 
-Copyright: 2013 Canonical LTD.
-
-License:
-
-GPL v3 or any later version
-
-On Debian systems, the complete text of the GNU General Public License version
-2 can be found in `/usr/share/common-licenses/GPL-3'.
+License: GPL-3.0-or-later
+ This package is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ .
+ This package is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License
+ along with this program. If not, see <https://www.gnu.org/licenses/>
+ .
+ On Debian systems, the complete text of the GNU General
+ Public License version 3 can be found in "/usr/share/common-licenses/GPL-3".
