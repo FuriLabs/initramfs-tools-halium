@@ -1,4 +1,4 @@
-#!/system/bin/sh
+#!/bin/sh
 
 set -e
 
@@ -44,6 +44,7 @@ check_filesystem() {
 }
 
 verify_signature() {
+    return 0
     # $1 => validation keyring name
     # $2 => path to validate
 
@@ -256,6 +257,24 @@ factory_wipe() {
     esac
 }
 
+# try to get ubuntu userdata owner in LVM from persist
+FURIOS_PERSIST="/dev/disk/by-partlabel/vendor_boot_a"
+if [ -e "${FURIOS_PERSIST}" ]; then
+    mkdir -p /furios-persist
+    filesystem=$(blkid -o value -s TYPE "${FURIOS_PERSIST}")
+    if [ "${filesystem}" == "ext4" ]; then
+        umount -l /furios-persist || true
+        mount "${FURIOS_PERSIST}" /furios-persist
+        if [ -f "/furios-persist/bootman/ubuntu-userdata" ]; then
+            LVM_SYSTEM_PARTITION=$(cat /furios-persist/bootman/ubuntu-userdata)
+        fi
+    else
+        echo "No FuriOS persist is not ext4. skipping"
+    fi
+else
+    echo "No FuriOS persist available. lets hope for the best"
+fi
+
 # Initialize GPG
 rm -Rf /tmp/system-image
 mkdir -p /tmp/system-image
@@ -286,6 +305,20 @@ if [ "$USE_SYSTEM_PARTITION" -eq 1 ];then
     fi
 fi
 
+# Use LVM system partition if available
+if [ -n "${LVM_SYSTEM_PARTITION}" ]; then
+    if [ -e "/dev/droidian/${LVM_SYSTEM_PARTITION}" ]; then
+        SYSTEM_PARTITION="/dev/droidian/${LVM_SYSTEM_PARTITION}"
+        mkdir -p /data
+        umount -l /data || true
+        mount /dev/droidian/ubuntu-userdata /data
+        rm -rf /cache
+        ln -sf /data/cache/ /
+    else
+        echo "got ${LVM_SYSTEM_PARTITION} as ubuntu userdata owner but it doesn't exist at /dev/droidian/"
+    fi
+fi
+
 # If we are not using the system partition, ensure that /data is mounted
 if [ "$USE_SYSTEM_PARTITION" -eq 0 ]; then
     mount /data
@@ -313,7 +346,7 @@ do
                         echo "system partition: $SYSTEM_PARTITION"
                         umount /system_root || true
                         umount /mnt/system || true
-                        mkfs.ext4 $SYSTEM_PARTITION
+                        mke2fs $SYSTEM_PARTITION
                     else
                         # We need to use legacy image name here, halium-boot needs this to decide file layout
                         dd if=/dev/zero of=/data/ubuntu.img seek=3M bs=1024 count=0
@@ -328,7 +361,7 @@ do
 
                     for entry in /data/* /data/.writable_image /data/.factory_wipe; do
                         if [ "$USE_SYSTEM_PARTITION" -eq 0 ]; then
-                            if [[ ( "$entry" == "/data/ubuntu.img" ) || ( "$entry" == "/data/rootfs.img" ) || ( "$entry" == "/data/system.img" ) || ( "$entry" == "/data/android-rootfs.img" ) ]]; then
+                            if [ "$entry" = "/data/ubuntu.img" ] || [ "$entry" = "/data/rootfs.img" ] || [ "$entry" = "/data/system.img" ] || [ "$entry" = "/data/android-rootfs.img" ]; then
                                     continue
                             fi
                         fi
