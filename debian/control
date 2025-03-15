@@ -3,6 +3,7 @@ Section: utils
 Priority: optional
 Maintainer: Bardia Moshiri <fakeshell@bardia.tech>
 XSBC-Original-Maintainer: Halium developers <admin@halium.org>
+XS-FuriOS-Extra-Repos: deb http://furilabs-plymouth-theme-ubports.repo.furios.io/trixie-ubports/ trixie main | deb http://furilabs-furios-recovery.repo.furios.io/trixie-ubports/ trixie main
 Build-Depends: debhelper-compat (= 13),
                lsb-release,
                fakeroot,
