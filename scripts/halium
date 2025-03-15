@@ -402,10 +402,6 @@ signal_root_move_done() {
 }
 
 manage_bootman_partition() {
-	if command -v plymouth >/dev/null && plymouth --ping; then
-		plymouth display-message --text="Configuring requested partition from bootman"
-	fi
-
 	commands_file="/furios-persist/bootman/commands"
 	while IFS= read -r cmd; do
 		# Skip empty lines
@@ -429,10 +425,6 @@ manage_bootman_partition() {
 
 	# maybe not 100% neccesary but better safe than sorry
 	lvm vgscan
-
-	if command -v plymouth >/dev/null && plymouth --ping; then
-		plymouth display-message --text=" "
-	fi
 }
 
 run_bootman() {
