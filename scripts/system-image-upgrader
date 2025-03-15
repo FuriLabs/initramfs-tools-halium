@@ -545,7 +545,7 @@ do
             fi
 
             # Unpack everything else on top of the system partition
-            busybox xzcat recovery/$2 | busybox tar --numeric-owner -xf -
+            busybox xzcat recovery/$2 | busybox tar --numeric-owner -xf - || true
             rm -f removed
 
             # WORKAROUND: fix erroneous vendor symlink
