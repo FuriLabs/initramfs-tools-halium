@@ -549,14 +549,13 @@ mountroot() {
 		run_furios_recovery
 	fi
 
-	# Check if we should prefer LVM mounts. If that's the case, try
-	# mounting the droidian-rootfs LV first, then fallback to the standard
-	# halium way (where we assume that userdata is a mountable partition)
+	# Prefer LVM mounts. If lvm.disable is specified then use the fallback rootfs image
+	use_lvm="yes"
 	if grep -q droidian.lvm /proc/cmdline; then
 		for x in $(cat /proc/cmdline); do
 			case ${x} in
-			droidian.lvm.prefer)
-				use_lvm="yes"
+			droidian.lvm.disable)
+				use_lvm="no"
 				;;
 			droidian.lvm.vg=*)
 				search_vg=${x#*=}
@@ -572,17 +571,18 @@ mountroot() {
 				;;
 			esac
 		done
+	fi
 
+	if [ "${use_lvm}" == "yes" ]; then
 		# Set default search vgs and root_lv
 		[ -z "${search_vg}" ] && search_vg="droidian"
 		[ -z "${root_lv}" ] && root_lv="droidian-rootfs"
 		[ -z "${reserved_lv}" ] && reserved_lv="droidian-reserved"
 		[ -z "${persistent_lv}" ] && persistent_lv="droidian-persistent"
-	fi
 
-	if [ "${use_lvm}" == "yes" ]; then
 		lvm vgscan
-		for try in 1 2 3; do
+		for try in 1 2 3 4 5; do
+			lvm vgscan --mknodes
 			for vg in ${search_vg}; do
 				if lvm vgchange -ay ${vg} && [ -e "/dev/${vg}/${root_lv}" ]; then
 					tell_kmsg "Found LVM VG ${vg}"
