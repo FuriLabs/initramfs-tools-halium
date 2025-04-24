@@ -228,7 +228,7 @@ resize_userdata_if_needed() {
 }
 
 resize_lvm_if_needed() {
-	# Like resize_userdata_if_needed, but for devices with the droidian
+	# Like resize_userdata_if_needed, but for devices with the furios
 	# LVM vg in userdata.
 	#
 	# Note: this is meant to be done as an online resize. Thus, the stamp
@@ -243,7 +243,7 @@ resize_lvm_if_needed() {
 		return
 	fi
 
-	part="/dev/${vg}/${lv}"
+	part="/dev/${selected_vg}/${lv}"
 
 	# Resize the underlying Physical Volume
 	if ! lvm pvresize ${pv}; then
@@ -551,22 +551,22 @@ mountroot() {
 
 	# Prefer LVM mounts. If lvm.disable is specified then use the fallback rootfs image
 	use_lvm="yes"
-	if grep -q droidian.lvm /proc/cmdline; then
+	if grep -q furios.lvm /proc/cmdline; then
 		for x in $(cat /proc/cmdline); do
 			case ${x} in
-			droidian.lvm.disable)
+			furios.lvm.disable)
 				use_lvm="no"
 				;;
-			droidian.lvm.vg=*)
+			furios.lvm.vg=*)
 				search_vg=${x#*=}
 				;;
-			droidian.lvm.root_lv=*)
+			furios.lvm.root_lv=*)
 				root_lv=${x#*=}
 				;;
-			droidian.lvm.reserved_lv=*)
+			furios.lvm.reserved_lv=*)
 				reserved_lv=${x#*=}
 				;;
-			droidian.lvm.persistent_lv=*)
+			furios.lvm.persistent_lv=*)
 				persistent_lv=${x#*=}
 				;;
 			esac
@@ -575,36 +575,75 @@ mountroot() {
 
 	if [ "${use_lvm}" == "yes" ]; then
 		# Set default search vgs and root_lv
-		[ -z "${search_vg}" ] && search_vg="droidian"
-		[ -z "${root_lv}" ] && root_lv="droidian-rootfs"
-		[ -z "${reserved_lv}" ] && reserved_lv="droidian-reserved"
-		[ -z "${persistent_lv}" ] && persistent_lv="droidian-persistent"
+		[ -z "${search_vg}" ] && search_vg="furios droidian"
+		[ -z "${root_lv}" ] && root_lv="furios-rootfs droidian-rootfs"
+		[ -z "${reserved_lv}" ] && reserved_lv="furios-reserved droidian-reserved"
+		[ -z "${persistent_lv}" ] && persistent_lv="furios-persistent droidian-persistent"
+		[ -z "${encrypted_name}" ] && encrypted_name="furios_encrypted droidian_encrypted"
 
 		lvm vgscan
 		for try in 1 2 3 4 5; do
 			lvm vgscan --mknodes
 			for vg in ${search_vg}; do
-				if lvm vgchange -ay ${vg} && [ -e "/dev/${vg}/${root_lv}" ]; then
-					tell_kmsg "Found LVM VG ${vg}"
-					_syspart="/dev/${vg}/${root_lv}"
-					file_layout="partition"
-					break
-				fi
+				# Try each possible root_lv option
+				for r_lv in ${root_lv}; do
+					if lvm vgchange -ay ${vg} && [ -e "/dev/${vg}/${r_lv}" ]; then
+						tell_kmsg "Found LVM VG ${vg} with root LV ${r_lv}"
+						selected_vg="${vg}"
+						_syspart="/dev/${selected_vg}/${r_lv}"
+						file_layout="partition"
+						# Store the found root_lv for later use
+						found_root_lv="${r_lv}"
+						break 2
+					fi
+				done
 			done
 			[ -n "${_syspart}" ] && break
 			sleep 2
 		done
 
-		# If _syspart is empty, LVM discovery failed. Let's continue
-		# normally
+		# If _syspart is empty, LVM discovery failed. Let's continue normally
 		if [ -z "${_syspart}" ]; then
 			unset use_lvm
-		elif [ -e "/dev/${vg}/${reserved_lv}" ] && [ "$(blkid /dev/${vg}/${reserved_lv} -o value -s TYPE)" == "crypto_LUKS" ]; then
-			# LUKS header, we should unlock
-			unlocked_syspart_name="droidian_encrypted"
-			use_luks="yes"
-			unlock_encrypted_partition /dev/${vg}/${root_lv} /dev/${vg}/${reserved_lv} ${unlocked_syspart_name}
-			_syspart="/dev/mapper/${unlocked_syspart_name}"
+		else
+			# Found a valid VG and root_lv, now check reserved_lv
+			for res_lv in ${reserved_lv}; do
+				if [ -e "/dev/${selected_vg}/${res_lv}" ]; then
+					found_reserved_lv="${res_lv}"
+					break
+				fi
+			done
+
+			# Check persistent_lv
+			for pers_lv in ${persistent_lv}; do
+				if [ -e "/dev/${selected_vg}/${pers_lv}" ]; then
+					found_persistent_lv="${pers_lv}"
+					break
+				fi
+			done
+
+			# Check if reserved LV is LUKS encrypted
+			if [ -n "${found_reserved_lv}" ] && [ "$(blkid /dev/${selected_vg}/${found_reserved_lv} -o value -s TYPE)" == "crypto_LUKS" ]; then
+				# LUKS header, we should unlock
+				use_luks="yes"
+
+				# Try each possible encrypted name
+				for enc_name in ${encrypted_name}; do
+					if [ -e "/dev/mapper/${enc_name}" ]; then
+						unlocked_syspart_name="${enc_name}"
+						tell_kmsg "Found existing encrypted volume ${unlocked_syspart_name}"
+						break
+					fi
+				done
+
+				# If no existing encrypted volume found, use first name in the list
+				if [ -z "${unlocked_syspart_name}" ]; then
+					unlocked_syspart_name=$(echo ${encrypted_name} | awk '{print $1}')
+				fi
+
+				unlock_encrypted_partition /dev/${selected_vg}/${found_root_lv} /dev/${selected_vg}/${found_reserved_lv} ${unlocked_syspart_name}
+				_syspart="/dev/mapper/${unlocked_syspart_name}"
+			fi
 		fi
 	fi
 
@@ -651,7 +690,7 @@ mountroot() {
 	fi
 
 	# bootman does not work with encrypted systems
-	if [ "${use_lvm}" == "yes" ] && [ -z "${unlocked_syspart_name}" ] && [ -n "${FURIOS_PERSIST}" ] && [ -e "${FURIOS_PERSIST}" ] && [ -n "${search_vg}" ]; then
+	if [ "${use_lvm}" == "yes" ] && [ -z "${unlocked_syspart_name}" ] && [ -n "${FURIOS_PERSIST}" ] && [ -e "${FURIOS_PERSIST}" ] && [ -n "${selected_vg}" ]; then
 		mkdir -p /furios-persist
 
 		# if this doesn't mount we will catch it in the next branch so not the cleanest, but gets the job done
@@ -681,7 +720,7 @@ mountroot() {
 							_syspart="${chosen_part}"
 							;;
 						*)
-							_syspart="/dev/${search_vg}/${chosen_part}"
+							_syspart="/dev/${selected_vg}/${chosen_part}"
 							;;
 						esac
 						tell_kmsg "Boot manager selected to boot the partition ${chosen_part}"
@@ -718,7 +757,7 @@ mountroot() {
 	if [ -n "$_syspart" ]; then
 		mount -o rw $_syspart /halium-system
 
-		[ "${use_lvm}" == "yes" ] && resize_lvm_if_needed "${path}" "${vg}" "${root_lv}"
+		[ "${use_lvm}" == "yes" ] && resize_lvm_if_needed "${path}" "${selected_vg}" "${root_lv}"
 	elif [ -f "$imagefile" ]; then
 		# Rootfs is an image file
 		mount -o loop,rw $imagefile /halium-system
