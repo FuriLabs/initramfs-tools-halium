@@ -314,8 +314,15 @@ if [ -n "${LVM_SYSTEM_PARTITION}" ]; then
         mount /dev/droidian/ubuntu-userdata /data
         rm -rf /cache
         ln -sf /data/cache/ /
+    elif [ -e "/dev/furios/${LVM_SYSTEM_PARTITION}" ]; then
+        SYSTEM_PARTITION="/dev/furios/${LVM_SYSTEM_PARTITION}"
+        mkdir -p /data
+        umount -l /data || true
+        mount /dev/furios/ubuntu-userdata /data
+        rm -rf /cache
+        ln -sf /data/cache/ /
     else
-        echo "got ${LVM_SYSTEM_PARTITION} as ubuntu userdata owner but it doesn't exist at /dev/droidian/"
+        echo "got ${LVM_SYSTEM_PARTITION} as ubuntu userdata owner but it doesn't exist in either /dev/droidian/ or /dev/furios/"
     fi
 fi
 
