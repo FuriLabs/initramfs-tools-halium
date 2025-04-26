@@ -257,8 +257,13 @@ factory_wipe() {
     esac
 }
 
+FURIOS_PERSIST=""
+dt_compatible=$(sed 's/$/\n/' /sys/firmware/devicetree/base/compatible | head -n1)
+if [ -n "${dt_compatible}" ] && [ "${dt_compatible}" == "furilabs,flx1" ]; then
+    FURIOS_PERSIST="/dev/disk/by-partlabel/vendor_boot_a"
+fi
+
 # try to get ubuntu userdata owner in LVM from persist
-FURIOS_PERSIST="/dev/disk/by-partlabel/vendor_boot_a"
 if [ -e "${FURIOS_PERSIST}" ]; then
     mkdir -p /furios-persist
     filesystem=$(blkid -o value -s TYPE "${FURIOS_PERSIST}")
@@ -269,7 +274,7 @@ if [ -e "${FURIOS_PERSIST}" ]; then
             LVM_SYSTEM_PARTITION=$(cat /furios-persist/bootman/ubuntu-userdata)
         fi
     else
-        echo "No FuriOS persist is not ext4. skipping"
+        echo "FuriOS persist is not ext4. skipping"
     fi
 else
     echo "No FuriOS persist available. lets hope for the best"
