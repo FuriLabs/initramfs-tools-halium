@@ -264,7 +264,7 @@ if [ -n "${dt_compatible}" ] && [ "${dt_compatible}" == "furilabs,flx1" ]; then
 fi
 
 # try to get ubuntu userdata owner in LVM from persist
-if [ -e "${FURIOS_PERSIST}" ]; then
+if [ -n "${FURIOS_PERSIST}" ] && [ -e "${FURIOS_PERSIST}" ]; then
     mkdir -p /furios-persist
     filesystem=$(blkid -o value -s TYPE "${FURIOS_PERSIST}")
     if [ "${filesystem}" == "ext4" ]; then
