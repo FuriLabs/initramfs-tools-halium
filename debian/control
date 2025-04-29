@@ -3,6 +3,7 @@ Section: utils
 Priority: optional
 Maintainer: Bardia Moshiri <fakeshell@bardia.tech>
 XSBC-Original-Maintainer: Halium developers <admin@halium.org>
+XS-FuriOS-Force-Staging: yes
 Build-Depends: debhelper-compat (= 13),
                lsb-release,
                fakeroot,
