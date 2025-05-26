@@ -730,10 +730,12 @@ mountroot() {
 				fi
 			fi
 
-			# after reading the current boot selection remove the indicator to make bootman ask again on the next boot
-			# TODO: sometimes next-boot is not removed and I am unsure why
-			# currently krypton-furiospersist takes care of removing it if it has not been removed already
-			rm -f /furios-persist/bootman/next-boot
+			# save current boot to use for comparison in bootman. instead of reflash and reboot every time,
+			# bootman can check against old-boot and just continue current boot if users choice has not changed
+			if [ -f /furios-persist/bootman/next-boot ]; then
+				mv /furios-persist/bootman/next-boot /furios-persist/bootman/old-boot
+			fi
+
 			umount /furios-persist
 		else
 			tell_kmsg "Failed to mount furios-persist"
