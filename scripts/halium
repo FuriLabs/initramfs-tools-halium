@@ -712,6 +712,25 @@ mountroot() {
 			if [ ${partition_count} -gt 1 ]; then
 				if [ ! -f "/furios-persist/bootman/next-boot" ]; then
 					run_bootman
+
+					if [ -f "/furios-persist/bootman/old-boot" ]; then
+						chosen_part=$(cat /furios-persist/bootman/old-boot)
+						if [ -n "${chosen_part}" ]; then
+							case "${chosen_part}" in
+							/*)
+								_syspart="${chosen_part}"
+								;;
+							*)
+								_syspart="/dev/${selected_vg}/${chosen_part}"
+								;;
+							esac
+							tell_kmsg "Boot manager selected to boot the partition without reflashing ${chosen_part}"
+						else
+							tell_kmsg "Failed to get boot manager old boot, file is empty"
+						fi
+					else
+						tell_kmsg "Failed to get boot manager old boot, file does not exist, falling back to furios-rootfs"
+					fi
 				else
 					chosen_part=$(cat /furios-persist/bootman/next-boot)
 					if [ -n "${chosen_part}" ]; then
@@ -732,8 +751,8 @@ mountroot() {
 
 			# save current boot to use for comparison in bootman. instead of reflash and reboot every time,
 			# bootman can check against old-boot and just continue current boot if users choice has not changed
-			if [ -f /furios-persist/bootman/next-boot ]; then
-				mv /furios-persist/bootman/next-boot /furios-persist/bootman/old-boot
+			if [ -f "/furios-persist/bootman/next-boot" ]; then
+				mv "/furios-persist/bootman/next-boot" "/furios-persist/bootman/old-boot"
 			fi
 
 			umount /furios-persist
