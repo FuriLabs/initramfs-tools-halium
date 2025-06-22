@@ -778,7 +778,7 @@ mountroot() {
 	if [ -n "$_syspart" ]; then
 		mount -o rw $_syspart /halium-system
 
-		[ "${use_lvm}" == "yes" ] && resize_lvm_if_needed "${path}" "${selected_vg}" "${root_lv}"
+		[ "${use_lvm}" == "yes" ] && resize_lvm_if_needed "${path}" "${selected_vg}" "${found_root_lv}"
 	elif [ -f "$imagefile" ]; then
 		# Rootfs is an image file
 		mount -o loop,rw $imagefile /halium-system
