@@ -483,6 +483,7 @@ mountroot() {
 				done
 			fi
 
+			halium_panic "debug charger"
 			lvglcharger
 		fi
 	fi
