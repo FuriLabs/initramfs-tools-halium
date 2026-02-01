@@ -685,7 +685,7 @@ mountroot() {
 
 	FURIOS_PERSIST=""
 	dt_compatible=$(sed 's/$/\n/' /sys/firmware/devicetree/base/compatible | head -n1)
-	if [ -n "${dt_compatible}" ] && [ "${dt_compatible}" == "furilabs,flx1" ]; then
+	if [ -n "${dt_compatible}" ] && { [ "$dt_compatible" = "furilabs,flx1" ] || [ "$dt_compatible" = "furilabs,flx1s" ]; }; then
 		FURIOS_PERSIST="/dev/disk/by-partlabel/vendor_boot_a"
 	fi
 
