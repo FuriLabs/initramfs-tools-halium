@@ -473,7 +473,7 @@ mountroot() {
 	udevadm settle
 
 	if [ -f "/usr/bin/lvglcharger" ]; then
-		if grep -q "androidboot.bootreason=usb" /proc/cmdline; then
+		if grep -q "androidboot.bootreason=usb" /proc/cmdline && ! { grep -q "androidboot.usbconfig=1" /proc/cmdline || grep -q "androidboot.usbconfig=2" /proc/cmdline; }; then
 			if [ -d "/sys/class/power_supply/charger" ]; then
 				while [ ! -e "/sys/class/power_supply/charger/online" ]; do
 					sleep 1
